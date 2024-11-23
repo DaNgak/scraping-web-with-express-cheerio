@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h1>{{ title }}</h1>
+        
+        <!-- Button untuk trigger fetch -->
+        <button @click="fetchHtmlContent" :disabled="loading">
+            {{ loading ? 'Loading...' : 'Fetch HTML' }}
+        </button>
+
+        <!-- Loading indicator -->
+        <div v-if="loading">Loading content...</div>
+        
+        <!-- Error message -->
+        <div v-if="error" style="color: red;">
+            Error: {{ error }}
+        </div>
+
+        <!-- HTML Content -->
+        <div v-if="htmlContent && !loading">
+            <h2>Raw HTML Content:</h2>
+            <div style="max-height: 300px; overflow: auto; border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+                {{ htmlContent }}
+            </div>
+
+            <!-- Parsed Data -->
+            <div v-if="parsedData">
+                <h2>Parsed Data:</h2>
+                <div style="margin: 10px 0;">
+                    <strong>Page Title:</strong> {{ parsedData.title }}
+                </div>
+                <div v-if="parsedData.metaDescription">
+                    <strong>Meta Description:</strong> {{ parsedData.metaDescription }}
+                </div>
+                
+                <div v-if="parsedData.headings.length">
+                    <h3>Headings Found:</h3>
+                    <ul>
+                        <li v-for="(heading, index) in parsedData.headings" :key="index">
+                            {{ heading }}
+                        </li>
+                    </ul>
+                </div>
+
+                <div v-if="parsedData.links.length">
+                    <h3>Links Found:</h3>
+                    <ul>
+                        <li v-for="(link, index) in parsedData.links" :key="index">
+                            {{ link.text }} - {{ link.href }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script script="module">
+        const { createApp, ref } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    title: "HTML Structure Fetcher",
+                    htmlContent: null,
+                    loading: false,
+                    error: null,
+                    parsedData: null,
+                    targetUrl: "https://simbmd.pasuruankab.web.id/homepage/labelisasi/index/773---aset_c"
+                };
+            },
+            methods: {
+                async fetchHtmlContent() {
+                    this.loading = true;
+                    this.error = null;
+                    this.parsedData = null;
+
+                    try {
+                        const corsProxy = "https://cors-anywhere.herokuapp.com/";
+                        const response = await axios.get(this.targetUrl, {
+                            headers: {
+                                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                                'Accept-Language': 'en-US,en;q=0.5',
+                            }
+                        });
+
+                        this.htmlContent = response.data;
+                        console.log('Raw HTML Content:', this.htmlContent);
+
+                        // Parse HTML dan ekstrak data
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(this.htmlContent, 'text/html');
+                        
+                        this.parsedData = {
+                            title: doc.title,
+                            metaDescription: doc.querySelector('meta[name="description"]')?.content,
+                            headings: Array.from(doc.querySelectorAll('h1, h2, h3')).map(h => h.textContent),
+                            links: Array.from(doc.querySelectorAll('a')).map(a => ({
+                                text: a.textContent.trim(),
+                                href: a.href
+                            }))
+                        };
+
+                        // Log parsed data
+                        console.log('Parsed Document:', doc);
+                        console.log('Parsed Data:', this.parsedData);
+                        console.log('Page Title:', this.parsedData.title);
+                        console.log('Headings:', this.parsedData.headings);
+                        console.log('Links:', this.parsedData.links);
+
+                        // Tambahan: Log specific elements jika diperlukan
+                        console.log('Tables:', doc.getElementsByTagName('table'));
+                        console.log('Forms:', doc.getElementsByTagName('form'));
+                        console.log('Divs:', doc.getElementsByTagName('div'));
+
+                    } catch (error) {
+                        this.error = error.message;
+                        console.error('Error fetching HTML:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            },
+            mounted() {
+                // Automatically fetch when component is mounted
+                this.fetchHtmlContent();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
